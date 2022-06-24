@@ -8,11 +8,14 @@
 #ifndef INC_VECTORNAV_HPP_
 #define INC_VECTORNAV_HPP_
 
+#include "stm32f0xx_hal.h"
 #include <stdint.h>
 
 #define GPS_HEADER "$VNGPS"
-
 #define IMU_HEADER "$VNIMU"
+
+#define 
+
 // struct based on section 8.8.1 here: https://geo-matching.com/uploads/default/m/i/migrationca8kud.pdf
 typedef struct{
     double time;        // GPS time of week in seconds
@@ -46,7 +49,5 @@ typedef struct{
     float temp;         // IMU Temperature in degrees C
     float pressure;     // Barometric pressure in kPa
 }IMU_data_t;
-
-
 
 #endif /* INC_VECTORNAV_HPP_ */

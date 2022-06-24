@@ -6,5 +6,3 @@
  */
 
 #include "vectorNav.hpp"
-
-
