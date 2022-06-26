@@ -49,7 +49,7 @@ typedef struct{
     float pressure;     // Barometric pressure in kPa
 }IMUData_t;
 
-// this is the enum that will signify which data to send
+// This is the enum that will signify which data to send
 typedef enum {
     gpsImu = 0,
     gps,
@@ -57,8 +57,8 @@ typedef enum {
 }typeData_e;
 
 /*
-    -this is the struct that will be passed in and out of GetResult
-    -based on type_data, we will know which data to send with all the rest being 0
+    -This is the struct that will be passed in and out of GetResult
+    -Based on type_data, we will know which data to send with all the rest being 0
 */
 typedef struct{
     GPSData_t gps_data;
@@ -66,27 +66,58 @@ typedef struct{
     typeData_e type_data;
 }PositionData_t
 
-
 class Position{
     public:
         virtual void GetResult(PositionData_t& data) = 0;
 };
 
+/*
+    This class inherits the Position class and is used for the VN300 operation
+*/
 class VN300: public Position{
     public:
+        
+        /**
+         * @brief Gets the only instance of this class, following the singleton model
+         * 
+         * @return The singleton instance
+         */
         static Position& getInstance();
 
+        /**
+         * @brief Constructor that will instantly delete the object that was instantiated to protect the singleton model
+         */
         VN300(const VN300*)=delete;
 
+        /**
+         * @brief Get the IMU and GPS data
+         * 
+         * @param data Struct holding the IMU and GPS data
+         */
         void GetResult(PositionData_t& data);
 
     private:
 
         VN300();
 
+        /**
+         * @brief Initialization of the VN300
+         */
         void VN300Init(void); //we may not need this
 
-        //helper functions ...
+        /**
+         * @brief Gets the GPS data from the VN300
+         * 
+         * @param gpsData The struct holding the GPS data
+         */
+        void getGPSData(GPSData_t& gpsData);
+
+        /**
+         * @brief Gets the IMU data from the VN300
+         * 
+         * @param imuData The struct holding the IMU data
+         */
+        void getIMUData(IMUData_t& imuData);
 
 };
 
