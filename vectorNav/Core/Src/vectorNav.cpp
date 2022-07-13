@@ -7,6 +7,13 @@
 
 #include "vectorNav.hpp"
 
+extern UART_HandleTypeDef huart3;
+
+const char MSG_CONFIG_COMMAND[] = "$VNWRG,75,0,0,01,1C9*XX"; //ASCII command to configure custom binary data group 1
+const char POLL_DATA_COMMAND[] = "$VNBOM,1*XX";              //ASCII command to poll VN300 and request custom binary data group 1
+const uint16_t PAYLOAD_SIZE = 74;                             //Size of custom message payload coming from VN300
+uint8_t payload_data[PAYLOAD_SIZE] = {0};                         //RX buffer to hold incoming data
+
 /* Public Methods  ---------------------------------------------------------*/
 
 Position& VN300::getInstance(){
@@ -14,8 +21,14 @@ Position& VN300::getInstance(){
     return singleton;
 }
 
-void VN300::GetResult(PositionData_t* data){
-
+void VN300::GetResult(PositionData_t& data){
+    //set all values in the struct to 0?
+    
+    if (data.req_data.gps)
+        getGPSData(data.gps_data);
+    
+    if (data.req_data.imu)
+        getIMUData(data.imu_data);
 }
 
 /* Private methods  ---------------------------------------------------------*/
@@ -24,14 +37,109 @@ VN300::VN300(){
 }
 
 void VN300::VN300Init(void){
-
+    //send satellite orientation commands
+    //set configuration register with custom binary output
+    sendCommand(MSG_CONFIG_COMMAND, sizeof(MSG_CONFIG_COMMAND));
 }
 
 void VN300::getGPSData(GPSData_t& gpsData){
+    sendCommand(POLL_DATA_COMMAND, sizeof(POLL_DATA_COMMAND));
+    recieveResponse();
+    parse_gps_data(gpsData);
+}
+
+void VN300::parse_gps_data(GPSData_t& gpsData){
+    //Define offsets
+    const uint8_t TIME_OFFSET = 4;
+    const uint8_t LATITUDE_OFFSET = 24;
+    const uint8_t LONGITUDE_OFFSET = 32;
+    const uint8_t ALTITUDE_OFFSET = 40;
+    const uint8_t VELNORTH_OFFSET = 48;
+    const uint8_t VELEAST_OFFSET = 52;
+    const uint8_t VELDOWN_OFFSET = 56;
+
+    uint64_t temp = 0;
+
+    for (uint8_t i = 7; i >= 0; i--)
+        gpsData.time <<= payload_data[TIME_OFFSET + i];
+
+    for (uint8_t i = 7; i >= 0; i--)
+        temp <<= payload_data[LATITUDE_OFFSET + i];
+    gpsData.latitude = binary_to_float(temp);
+
+    for (uint8_t i = 7; i >= 0; i--)
+        temp <<= payload_data[LONGITUDE_OFFSET + i];
+    gpsData.longitude = binary_to_float(temp);
+
+    for (uint8_t i = 7; i >= 0; i--)
+        temp <<= payload_data[ALTITUDE_OFFSET + i];
+    gpsData.altitude = binary_to_float(temp);
+
+    for (uint8_t i = 3; i >= 0; i--)
+        temp <<= payload_data[VELNORTH_OFFSET + i];
+    gpsData.velNorth = binary_to_float(temp);
+
+    for (uint8_t i = 3; i >= 0; i--)
+        temp <<= payload_data[VELEAST_OFFSET + i];
+    gpsData.velEast = binary_to_float(temp);
+
+    for (uint8_t i = 3; i >= 0; i--)
+        temp <<= payload_data[VELDOWN_OFFSET + i];
+    gpsData.velDown = binary_to_float(temp);
+    
+}
+
+float VN300::binary_to_float(uint64_t val){
 
 }
 
 void VN300::getIMUData(IMUData_t& imuData){
 
 }
+
+void VN300::parse_imu_data(IMUData_t& imuData){
+    const uint8_t PITCH_OFFSET = 12;
+    const uint8_t ROLL_OFFSET = 16;
+    const uint8_t YAW_OFFSET = 20;
+    const uint8_t ACCEL0_OFFSET = 60;
+    const uint8_t ACCEL1_OFFSET = 64;
+    const uint8_t ACCEL2_OFFSET = 68;
+
+    uint64_t temp = 0;
+
+    for (uint8_t i = 3; i >= 0; i--)
+        temp <<= payload_data[PITCH_OFFSET + i];
+    imuData.pitch = binary_to_float(temp);
+
+    for (uint8_t i = 3; i >= 0; i--)
+        temp <<= payload_data[ROLL_OFFSET + i];
+    imuData.roll = binary_to_float(temp);
+
+    for (uint8_t i = 3; i >= 0; i--)
+        temp <<= payload_data[YAW_OFFSET + i];
+    imuData.yaw = binary_to_float(temp);
+
+    for (uint8_t i = 3; i >= 0; i--)
+        temp <<= payload_data[ACCEL0_OFFSET + i];
+    imuData.accel0 = binary_to_float(temp);
+
+    for (uint8_t i = 3; i >= 0; i--)
+        temp <<= payload_data[ACCEL1_OFFSET + i];
+    imuData.accel1 = binary_to_float(temp);
+
+    for (uint8_t i = 3; i >= 0; i--)
+        temp <<= payload_data[ACCEL2_OFFSET + i];
+    imuData.accel2 = binary_to_float(temp);
+}
+
+
+
+void VN300::sendCommand(const char* command, uint16_t size){
+    HAL_UART_Transmit(&huart3, (uint8_t*)command, size, 100);
+}
+
+void VN300::recieveResponse(void){
+    HAL_UART_Receive(&huart3, payload_data, PAYLOAD_SIZE, 100);
+}
+
 
